@@ -164,21 +164,21 @@ INSTR PROCEDURE (*sec_instr)
 
 /* -------  Set Preload Images for Instr + Demo (*preload_instr) -------------- */
 
-forPreload.push(`${stimFolder}demo-circles.png`);
-// make sure to load any images you need for the demo itself. Usually you have different demo images than the main expt, such that you don't give away the content of the expt itself (but still give the participant practice and familiarity with the task. In this case, though, the demo images themselves are identical to the main expt. Variable names are the only difference.
-var demo_circle_colors = ["blue","orange"];
-var demo_display_durations = [200, 500];
-for (var i = 0; i < demo_circle_colors.length; i++) {
-    forPreload.push(`${stimFolder}${demo_circle_colors[i]}-circle.png`);
-}
+// forPreload.push(`${stimFolder}demo-circles.png`);
+// // make sure to load any images you need for the demo itself. Usually you have different demo images than the main expt, such that you don't give away the content of the expt itself (but still give the participant practice and familiarity with the task. In this case, though, the demo images themselves are identical to the main expt. Variable names are the only difference.
+// var demo_circle_colors = ["blue","orange"];
+// var demo_display_durations = [200, 500];
+// for (var i = 0; i < demo_circle_colors.length; i++) {
+//     forPreload.push(`${stimFolder}${demo_circle_colors[i]}-circle.png`);
+// }
 
-//decide what the parameters for the demo trial should be. Sometimes you hardcode this, sometimes you randomly choose from the options you defined above.
-var thisDemoCircle = randomChoice(demo_circle_colors,1)[0];
-var thisDemoDispDuration = randomChoice(demo_display_durations,1)[0];
+// //decide what the parameters for the demo trial should be. Sometimes you hardcode this, sometimes you randomly choose from the options you defined above.
+// var thisDemoCircle = randomChoice(demo_circle_colors,1)[0];
+// var thisDemoDispDuration = randomChoice(demo_display_durations,1)[0];
 
 /* -------  Push Instr + Demo Trials to timeline_instr (*push_instr) -------------- */
 var instrContent = loadInstrContent();
-var demoTrialIndex = 3;
+var demoTrialIndex = 4;
 var [instrContent_beforedemo,instrContent_afterdemo] = cutArray(instrContent,3);
 
 var instructions1 = {
@@ -212,7 +212,7 @@ var instructions2 = {
 };
 
 timelineinstr.push(instructions1);
-runSingleTrial(thisDemoCircle,thisDemoDispDuration,timelineinstr,"prac") // pushesyour demo trial
+// runSingleTrial(thisDemoCircle,thisDemoDispDuration,timelineinstr,"prac") // pushesyour demo trial
 timelineinstr.push(instructions2);
 
 /*
@@ -227,28 +227,35 @@ EXPERIMENT SECTION (*sec_expt)
 // it's called from startExperiment() once config is actually available.
 function buildExptDesign(config) {
     // Expt variables that are not able to change (without PR)
-    var possible_display_durations = [200, 500];
+    var possible_display_durations = [2000, 5000];
+    var possible_trial_types = ["same", "different"];
+    var possible_light_config = ["three", "five"];
 
     // Expt variables that ARE able to change via config, default set in params.js.
     //      Config numbers arrive as floats, so make sure to read in correctly asInteger/asNumber
     //      see the helpers in src/js/utils/standard-functions.js.
-    var possible_circle_colors = asList(config.base_circle_colors, CONFIG_DEFAULTS.base_circle_colors);
     var n_reps = asInteger(config.number_of_repetitions, CONFIG_DEFAULTS.number_of_repetitions);
     
     // Build the main experiment trials, including both types of expt variables
     var factors = {
-        circle_color: possible_circle_colors,
+        trialCondition: possible_trial_types,
+        lightType: possible_light_config,
         display_duration: possible_display_durations, 
     };
     var factorial_design = jsPsych.randomization.factorial(factors, n_reps);
 
     /* -------  Set Preload Images for Expt (*preload_expt) -------------- */
-    for (var i = 0; i < possible_circle_colors.length; i++) {
-        forPreload.push(`${stimFolder}${possible_circle_colors[i]}-circle.png`);
-    }
+    // for (var i = 0; i < possible_circle_colors.length; i++) {
+    //     forPreload.push(`${stimFolder}${possible_circle_colors[i]}-circle.png`);
+    // }
+    forPreload.push(`${stimFolder}fiveOffBase2.png`);
+    forPreload.push(`${stimFolder}fiveOffTraffic2.png`);
+    forPreload.push(`${stimFolder}threeOffBase2.png`);
+    forPreload.push(`${stimFolder}threeOffTraffic2.png`);
+    forPreload.push(`${stimFolder}mask.png`);
 
     return factorial_design;
-}
+};
 
 /*
 ===============================================================
@@ -332,8 +339,13 @@ async function startExperiment() {
     console.log(full_design);
 
     for (var t = 0; t < full_design.length; t++) {
-        runSingleTrial(full_design[t].circle_color, full_design[t].display_duration, timelineexpt, 'expt');
-    }
+        runSingleTrial(
+            full_design[t].trialCondition,
+            full_design[t].lightType, 
+            full_design[t].display_duration,
+            timelineexpt,
+            'expt');
+    };
 
     // Assemble the timeline (toggle sections with the run* flags in params.js).
     if (runPreload) {

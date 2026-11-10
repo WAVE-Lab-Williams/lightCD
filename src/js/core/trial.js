@@ -4,7 +4,8 @@ PUSHING/RUNNING A CUSTOM SINGLE TRIAL (*singleTrial)
 ===============================================================
 */
 function runSingleTrial(
-    stimColor,
+    trialCondition,
+    lightType,
     stimDuration,
     timelineTrialsToPush,
     trialType,
@@ -45,60 +46,48 @@ function runSingleTrial(
     };
 
     /*--------------------------- Experiment specific variables ---------------------------*/
-    var thisStim = `${stimFolder}${stimColor}-circle.png`
-    var persistent_prompt = `<div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%); text-align: center;">f = blue; j = orange </div>`;
+    if(trialCondition == "different") {
+        var firstImageCondition = "Base";
+        var secondImageCondition = "Traffic";
+    } else {
+        var firstImageCondition = "Base";
+        var secondImageCondition = "Base";
+    };
+    
+    var firstStim = `${stimFolder}${lightType}Off${firstImageCondition}2`; //note that dispImage adds the .png
+    var secondStim = `${stimFolder}${lightType}Off${secondImageCondition}2`;
+    var persistent_prompt = `<div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%); text-align: center;">f = same image; j = different image </div>`;
 
-    /* testing a slider */
-    tarSize = 40;
-    var dispCircleSlider = {
-        type: jsPsychHtmlSliderResponseResizing,
-        stimulus: `<img src="${thisStim}" />`,
-        slider_start: 70,
-        min: 20,
-        max: 120,
-        slider_width: 500,
-        labels: ["smaller","larger"],
-        trial_duration: null,
-        response_ends_trial: true,
-        prompt: `${persistent_prompt}`,
-        data: {
-            trial_category: 'answer'+trialType,
-            trial_stimulus: thisStim,
-            correct_response: tarSize,
-        }, // data end
-        on_finish: function(data){
-            data.thisDifference = data.response - tarSize
-        } // on finish end
-    }; // dispCircle end
-
-    var dispCircle = {
-        type: jsPsychHtmlKeyboardResponse,
-        stimulus: `<img src="${thisStim}" style="width: ${imgWidth}px;" />`,
-        choices: ['f', 'j'],
-        stimulus_duration: stimDuration, // only use stimulus_duration when you want the image on screen display to be desynced from the trial_duration, will go hidden after this time.
-        trial_duration: null, // most of the time, you will have trial_duration set to the display time, and no stimulus duration at all.
-        response_ends_trial: true,
-        prompt: `${persistent_prompt}`,
-        data: {
-            trial_category: 'answer'+trialType,
-            trial_stimulus: thisStim,
-            trial_duration: stimDuration, // you only need to include this line to overlay trial_duration if stimulus_duration is different than trial_duration, and you actually want to record stimulus_duration
-            correct_response: function(){ 
-                if (stimColor === 'blue') {
-                    return 'f';
-                } else if (stimColor === 'orange') {
-                    return 'j';
-                }
-            }, //correct response end
-        }, // data end
-        on_finish: function(data){
-            if (jsPsych.pluginAPI.compareKeys(data.response, data.correct_response)){
-                data.thisAcc = 1;
-            } else {
-                data.thisAcc = 2;
+    var random_y_pos = randomIntFromRange(50, h-imgHeight); // generate a random number that will fall within the screen region (taking into account the image size)
+    
+    function dispImage(useStim){
+        var actualImage = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus:  function(){
+                w =
+                    window.innerWidth ||
+                    document.documentElement.clientWidth ||
+                    document.body.clientWidth;
+                var x_pos = (w/2)-(imgWidth/2)
+                var display = `<div style="position: absolute; top: ${random_y_pos}px; left: ${x_pos}px;">`+
+                `<img src="${useStim}.png" style="width:${imgWidth}px; height:${imgHeight}px" />` + 
+                `</div>`;
+                return display},
+            choices: "NO_KEYS",
+            trial_duration: stimDuration,
+            prompt: `${persistent_prompt}`,
+            data: {
+                trial_category: 'dispImage'+trialType,
+                trial_stimulus: useStim,
+                trial_duration: stimDuration,
+            }, // data end
+            on_finish: function(){
+                console.log(useStim, random_y_pos)
             }
-        } // on finish end
-    }; // dispCircle end
+        }; // dispCircle end
+        return actualImage
+    };
+
 
     var prestim = {
         type: jsPsychHtmlKeyboardResponse,
@@ -120,6 +109,51 @@ function runSingleTrial(
         }
     };
 
+    var mask = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function(){
+            w =
+                window.innerWidth ||
+                document.documentElement.clientWidth ||
+                document.body.clientWidth;
+            var x_pos = (w/2)-(imgWidth/2)
+            var display = `${persistent_prompt}<div style="position: absolute; top: ${random_y_pos}px; left: ${x_pos}px;">`+
+            `<img src="${stimFolder}mask.png" style="width:${imgWidth}px; height:${imgHeight}px" />` + 
+            `</div>`
+            return display
+        },
+        choices: "NO_KEYS",
+        trial_duration: MASK_DISP_TIME,
+        data: {
+            trial_category: 'mask' + trialType,
+        }
+    };
+
+    var answer = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `${persistent_prompt}`,
+        choices: ["f","j"],
+        data: {
+            trial_category: "answer" + trialType,
+            y_position: random_y_pos,
+            correct_response: function(){
+                if (trialCondition == "same"){
+                    return "f"
+                } else {
+                    return "j"
+                }
+            }
+        },
+        on_finish: function(data){
+            if (jsPsych.pluginAPI.compareKeys(data.response, data.correct_response)){
+                data.thisAcc = 1;
+            } else {
+                data.thisAcc = 0;
+            }
+            console.log(data.thisAcc)
+        } // on finish end
+    };
+
 
     /*--------------------------- push single trial sequence ---------------------------*/
 
@@ -127,8 +161,11 @@ function runSingleTrial(
     timelineTrialsToPush.push(cursor_off);
     timelineTrialsToPush.push(prestim);
     timelineTrialsToPush.push(fixation);
-    timelineTrialsToPush.push(dispCircle);
-    // timelineTrialsToPush.push(dispCircleSlider); // if you wanted to use the slider reproduction measurement tool
+    timelineTrialsToPush.push(dispImage(firstStim));
+    timelineTrialsToPush.push(mask);
+    timelineTrialsToPush.push(dispImage(secondStim));
+    timelineTrialsToPush.push(mask);
+    timelineTrialsToPush.push(answer);
     timelineTrialsToPush.push(cursor_on);
 
-}
+};
